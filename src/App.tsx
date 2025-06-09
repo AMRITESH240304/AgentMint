@@ -5,6 +5,7 @@ import AgentRegistration from './components/AgentRegistration';
 import AgentGallery from './components/AgentGallery';
 import Marketplace from './components/Marketplace';
 import type { AIAgent } from './types/agent';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 function App() {
   const [activeSection, setActiveSection] = useState('home');
@@ -32,6 +33,9 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black">
       <Header activeSection={activeSection} setActiveSection={setActiveSection} />
       {renderSection()}
+      <div className="fixed bottom-0 right-0 p-4">
+          <ConnectButton />
+        </div>
     </div>
   );
 }
