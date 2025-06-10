@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Filter, Clock, Coins, Circle } from 'lucide-react';
 import type { AIAgent } from '../types/agent';
-// import BidScreen from './BidScreen'; // Import the new BidScreen component
+import BidScreen from './BidScreen'; // Import the new BidScreen component
 
 interface AuctionListingsProps {
   agents: AIAgent[];
