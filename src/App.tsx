@@ -4,6 +4,7 @@ import Hero from './components/Hero';
 import AgentRegistration from './components/AgentRegistration';
 import AgentGallery from './components/AgentGallery';
 import Marketplace from './components/Marketplace';
+import AuctionListings from './components/AuctionListings';
 import type { AIAgent } from './types/agent';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
@@ -24,6 +25,8 @@ function App() {
         return <AgentGallery agents={agents} setActiveSection={setActiveSection} />;
       case 'marketplace':
         return <Marketplace agents={agents} />;
+      case 'auctions':
+        return <AuctionListings agents={agents} />;
       default:
         return <Hero setActiveSection={setActiveSection} />;
     }
