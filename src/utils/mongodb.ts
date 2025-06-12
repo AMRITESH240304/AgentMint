@@ -1,5 +1,5 @@
 export async function mapWalletToNft(walletAddress: string, nftId: string): Promise<void> {
-  const response = await fetch("http://127.0.0.1:8000/map", {
+  const response = await fetch("https://agent-mint-back.onrender.com/map", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -17,7 +17,7 @@ export async function mapWalletToNft(walletAddress: string, nftId: string): Prom
 }
 
 export async function fetchMappings(): Promise<{ mappings: Array<{ wallet_address: string, nft_id: string }> }> {
-  const response = await fetch("http://127.0.0.1:8000/fetch", {
+  const response = await fetch("https://agent-mint-back.onrender.com/fetch", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

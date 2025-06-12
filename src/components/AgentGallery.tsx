@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, Star, Activity, Clock, Coins } from 'lucide-react';
-import type { AIAgent } from '../types/agent';
+import { AIAgent } from '../types/agent';
 import { fetchMappings } from '../utils/mongodb';
 import { getPinataUrl } from '../utils/pinata';
 
@@ -41,14 +41,48 @@ export default function AgentGallery({ agents: propAgents, setActiveSection }: A
                 console.error(`Failed to fetch agent data for NFT ID: ${nftId}`);
                 return null;
               }
-              return await response.json();
+              
+              const agentData = await response.json();
+              
+              // Convert the Pinata data format to our AIAgent format
+              const agent = {
+                id: nftId,
+                name: agentData.title || 'Unnamed Agent',
+                description: agentData.description || 'No description available',
+                avatar: "https://gateway.pinata.cloud/ipfs/QmSamy4zqP91X42k6wS7kLJQVzuYJuW2EN94couPaq82A8",
+                category: agentData.category || 'Uncategorized',
+                capabilities: agentData.capabilities || [],
+                creator: agentData.creators?.[0]?.name || 'Unknown',
+                blockchain: {
+                  tokenId: nftId,
+                  contractAddress: "0x1234...",
+                  transactionHash: "0x5678...",
+                  mintedAt: new Date().toISOString()
+                },
+                metadata: {
+                  model: agentData.metadata?.model || "unknown",
+                  version: agentData.metadata?.version || "1.0",
+                  training: agentData.metadata?.training || "standard",
+                  parameters: agentData.metadata?.parameters || "0"
+                },
+                createdAt: new Date().toISOString(),
+                performance: {
+                  rating: 4.5,
+                  tasks: 120,
+                  uptime: 99
+                },
+                price: 0.1,
+                isForSale: true
+              };
+              return agent;
             } catch (err) {
               console.error(`Error fetching agent data for NFT ID: ${nftId}`, err);
               return null;
             }
           });
           
-          const fetchedAgents = (await Promise.all(agentPromises)).filter(agent => agent !== null);
+          const fetchedAgents = (await Promise.all(agentPromises))
+            .filter((agent): agent is AIAgent => agent !== null) as AIAgent[];
           setAgents([...propAgents, ...fetchedAgents]);
         }
       } catch (err) {
