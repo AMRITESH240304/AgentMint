@@ -48,6 +48,13 @@ export default function Hero({ setActiveSection }: HeroProps) {
             >
               Explore Gallery
             </button>
+
+            <button
+              onClick={() => setActiveSection('auctions')}
+              className="px-8 py-4 border border-white/20 rounded-lg font-semibold text-white hover:bg-white/10 transition-all duration-300 transform hover:scale-105"
+            >
+              View Auctions
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto mt-16">
