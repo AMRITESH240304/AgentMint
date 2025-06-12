@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { Bot, Upload, Zap, CheckCircle, Loader } from 'lucide-react';
 import type { RegistrationForm, AIAgent } from '../types/agent';
+import { registerAgentAsIpAsset } from '../utils/agentRegistration';
+import { useRainbowKit } from '../hooks/useRainbowKit';
+import { useAccount } from 'wagmi'; // Add this import at the top
 
 interface AgentRegistrationProps {
   onRegister: (agent: AIAgent) => void;
 }
 
 export default function AgentRegistration({ onRegister }: AgentRegistrationProps) {
+  // Add this hook to get the wallet address
+  const { address } = useAccount();
+  
   const [form, setForm] = useState<RegistrationForm>({
     name: '',
     description: '',
@@ -21,6 +27,7 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
     isForSale: false,
   });
 
+  const { isConnected, openConnectModal } = useRainbowKit();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [capabilityInput, setCapabilityInput] = useState('');
@@ -46,39 +53,48 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if wallet is connected
+    if (!isConnected) {
+      alert('Please connect your wallet before registering an agent');
+      openConnectModal?.();
+      return;
+    }
+    
     setIsSubmitting(true);
 
-    // Simulate blockchain minting process
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    try {
+      // Pass the wallet address to the registerAgentAsIpAsset function
+      const { agent } = await registerAgentAsIpAsset(form, address as string);
+      
+      // Pass the registered agent to the parent component
+      onRegister(agent);
+      setIsSubmitting(false);
+      setSubmitted(true);
+    } catch (error) {
+      console.error("Error registering agent:", error);
+      setIsSubmitting(false);
+      // You might want to show an error message to the user here
+    }
+  };
 
-    const newAgent: AIAgent = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...form,
-      avatar: form.avatar || `https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=400`,
-      creator: 'You',
-      performance: {
-        rating: 0,
-        tasks: 0,
-        uptime: 100,
-      },
-      metadata: {
-        model: form.model,
-        version: form.version,
-        training: form.training,
-        parameters: form.parameters,
-      },
-      blockchain: {
-        tokenId: `AGENT-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-        contractAddress: '0x' + Math.random().toString(16).substr(2, 40),
-        transactionHash: '0x' + Math.random().toString(16).substr(2, 64),
-        mintedAt: new Date().toISOString(),
-      },
-      createdAt: new Date().toISOString(),
-    };
-
-    onRegister(newAgent);
-    setIsSubmitting(false);
-    setSubmitted(true);
+  const ConnectWalletMessage = () => {
+    if (isConnected) return null;
+    
+    return (
+      <div className="mb-8 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+        <div className="flex items-center justify-between">
+          <p className="text-yellow-200">Please connect your wallet to register an AI agent</p>
+          <button
+            type="button"
+            onClick={() => openConnectModal?.()}
+            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-black font-medium transition-colors"
+          >
+            Connect Wallet
+          </button>
+        </div>
+      </div>
+    );
   };
 
   if (submitted) {
@@ -89,9 +105,19 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
             <CheckCircle className="h-16 w-16 text-green-400 mx-auto mb-6" />
             <h2 className="text-3xl font-bold text-white mb-4">Agent Successfully Minted!</h2>
             <p className="text-gray-300 mb-8">
-              Your AI agent has been successfully registered as an NFT on the Story blockchain.
+              Your AI agent has been successfully registered as an IP Asset on the Story blockchain.
               You can now view it in the gallery and manage it in the marketplace.
             </p>
+            <div className="flex flex-col space-y-4 mb-8">
+              <a 
+                href={`https://aeneid.explorer.story.foundation/ipa`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-lg font-semibold text-white hover:from-purple-400 hover:to-indigo-400 transition-all duration-300"
+              >
+                View on Story Explorer
+              </a>
+            </div>
             <button
               onClick={() => {
                 setSubmitted(false);
@@ -127,7 +153,10 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
           <p className="text-xl text-gray-300">Transform your AI agent into a unique NFT on the Story blockchain</p>
         </div>
 
+        <ConnectWalletMessage />
+
         <form onSubmit={handleSubmit} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
+          <ConnectWalletMessage />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Basic Information */}
             <div className="space-y-6">
@@ -313,18 +342,23 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
           <div className="mt-8 flex justify-center">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isConnected}
               className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg font-semibold text-white hover:from-cyan-400 hover:to-purple-400 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {isSubmitting ? (
                 <>
                   <Loader className="h-5 w-5 animate-spin" />
-                  <span>Minting on Story Blockchain...</span>
+                  <span>Minting & Registering on Story Protocol...</span>
+                </>
+              ) : !isConnected ? (
+                <>
+                  <Upload className="h-5 w-5" />
+                  <span>Connect Wallet to Register</span>
                 </>
               ) : (
                 <>
                   <Upload className="h-5 w-5" />
-                  <span>Register & Mint NFT</span>
+                  <span>Register as IP Asset</span>
                 </>
               )}
             </button>
