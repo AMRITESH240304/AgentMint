@@ -2,11 +2,13 @@ import { Address } from "viem";
 import { client, SPG_NFT_CONTRACT } from "./storyProtocol";
 import { createMetadataHash, mockUploadToIPFS, getIPFSUrl } from "./ipfs";
 import type { AIAgent, RegistrationForm } from "../types/agent";
+import { uploadJSONToIPFS } from "./pinata"
+import {mapWalletToNft} from "./mongodb";
 
 /**
  * Registers an AI agent as an IP asset on the Story Protocol blockchain
  */
-export const registerAgentAsIpAsset = async (form: RegistrationForm): Promise<{
+export const registerAgentAsIpAsset = async (form: RegistrationForm, walletAddress: string): Promise<{
   agent: AIAgent;
   ipId: string;
   txHash: string;
@@ -22,7 +24,7 @@ export const registerAgentAsIpAsset = async (form: RegistrationForm): Promise<{
       creators: [
         {
           name: "AI Agent Creator",
-          address: "0x67ee74EE04A0E6d14Ca6C27428B27F3EFd5CD084", // Replace with the actual user's address
+          address: walletAddress, // Use the connected wallet address
           description: "Creator of AI Agents",
           contributionPercent: 100,
           socialMedia: [],
@@ -35,7 +37,8 @@ export const registerAgentAsIpAsset = async (form: RegistrationForm): Promise<{
         version: form.version,
         training: form.training,
         parameters: form.parameters,
-      }
+      },
+      walletAddress: walletAddress // Store the wallet address directly in the metadata
     };
 
     // Create NFT metadata (simpler version of the IP metadata)
@@ -87,6 +90,11 @@ export const registerAgentAsIpAsset = async (form: RegistrationForm): Promise<{
       },
       createdAt: new Date().toISOString(),
     };
+    const ipHashP = await uploadJSONToIPFS(ipMetadata);
+    await mapWalletToNft(walletAddress, ipHashP);
+
+    console.log("Agent registered successfully:", newAgent);
+    console.log("IP Asset registered with IPFS hash:", ipIpfsHash);
 
     return {
       agent: newAgent,

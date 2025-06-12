@@ -2,12 +2,17 @@ import React, { useState } from 'react';
 import { Bot, Upload, Zap, CheckCircle, Loader } from 'lucide-react';
 import type { RegistrationForm, AIAgent } from '../types/agent';
 import { registerAgentAsIpAsset } from '../utils/agentRegistration';
+import { useRainbowKit } from '../hooks/useRainbowKit';
+import { useAccount } from 'wagmi'; // Add this import at the top
 
 interface AgentRegistrationProps {
   onRegister: (agent: AIAgent) => void;
 }
 
 export default function AgentRegistration({ onRegister }: AgentRegistrationProps) {
+  // Add this hook to get the wallet address
+  const { address } = useAccount();
+  
   const [form, setForm] = useState<RegistrationForm>({
     name: '',
     description: '',
@@ -22,6 +27,7 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
     isForSale: false,
   });
 
+  const { isConnected, openConnectModal } = useRainbowKit();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [capabilityInput, setCapabilityInput] = useState('');
@@ -47,11 +53,19 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if wallet is connected
+    if (!isConnected) {
+      alert('Please connect your wallet before registering an agent');
+      openConnectModal?.();
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
-      // Register the agent as an IP asset on Story Protocol
-      const { agent } = await registerAgentAsIpAsset(form);
+      // Pass the wallet address to the registerAgentAsIpAsset function
+      const { agent } = await registerAgentAsIpAsset(form, address as string);
       
       // Pass the registered agent to the parent component
       onRegister(agent);
@@ -62,6 +76,25 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
       setIsSubmitting(false);
       // You might want to show an error message to the user here
     }
+  };
+
+  const ConnectWalletMessage = () => {
+    if (isConnected) return null;
+    
+    return (
+      <div className="mb-8 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+        <div className="flex items-center justify-between">
+          <p className="text-yellow-200">Please connect your wallet to register an AI agent</p>
+          <button
+            type="button"
+            onClick={() => openConnectModal?.()}
+            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 rounded-lg text-black font-medium transition-colors"
+          >
+            Connect Wallet
+          </button>
+        </div>
+      </div>
+    );
   };
 
   if (submitted) {
@@ -120,7 +153,10 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
           <p className="text-xl text-gray-300">Transform your AI agent into a unique NFT on the Story blockchain</p>
         </div>
 
+        <ConnectWalletMessage />
+
         <form onSubmit={handleSubmit} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
+          <ConnectWalletMessage />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Basic Information */}
             <div className="space-y-6">
@@ -306,13 +342,18 @@ export default function AgentRegistration({ onRegister }: AgentRegistrationProps
           <div className="mt-8 flex justify-center">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isConnected}
               className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg font-semibold text-white hover:from-cyan-400 hover:to-purple-400 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {isSubmitting ? (
                 <>
                   <Loader className="h-5 w-5 animate-spin" />
                   <span>Minting & Registering on Story Protocol...</span>
+                </>
+              ) : !isConnected ? (
+                <>
+                  <Upload className="h-5 w-5" />
+                  <span>Connect Wallet to Register</span>
                 </>
               ) : (
                 <>
