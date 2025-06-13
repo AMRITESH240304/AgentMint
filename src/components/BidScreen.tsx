@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import type { AIAgent } from '../types/agent';
-import { ArrowLeft, Coins, Info, CheckCircle, XCircle, Hammer } from 'lucide-react';
+import { ArrowLeft, Info, CheckCircle, XCircle, Hammer } from 'lucide-react';
 
 interface BidScreenProps {
   agent: AIAgent;
@@ -183,6 +183,33 @@ export default function BidScreen({ agent, onBack, onPlaceBid }: BidScreenProps)
                 )}
               </button>
               <p className="text-xs text-gray-500 mt-3 text-center">Get approved to bid. <a href="#" className="text-cyan-400 hover:underline">Register for Auction</a></p>
+            </div>
+          </div>
+        </div>
+
+        {/* Blockchain Details Section */}
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 mt-4">
+          <h3 className="text-lg font-semibold text-white mb-2">NFT Details</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Contract:</span>
+              <span className="text-cyan-400 font-mono">
+                {agent.blockchain?.contractAddress ? 
+                  `${agent.blockchain.contractAddress.substring(0, 6)}...${agent.blockchain.contractAddress.substring(agent.blockchain.contractAddress.length - 4)}` : 
+                  "N/A"}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Token ID:</span>
+              <span className="text-cyan-400 font-mono">{agent.blockchain?.tokenId || "N/A"}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Minted:</span>
+              <span className="text-gray-300">
+                {agent.blockchain?.mintedAt ? 
+                  new Date(agent.blockchain.mintedAt).toLocaleDateString() : 
+                  "N/A"}
+              </span>
             </div>
           </div>
         </div>
