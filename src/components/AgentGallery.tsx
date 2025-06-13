@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Star, Activity, Clock, Coins } from 'lucide-react';
+import { Search, Filter, Star, Activity, Clock, Coins, ShoppingCart, Tag } from 'lucide-react';
 import { AIAgent } from '../types/agent';
 import { fetchMappings } from '../utils/mongodb';
 import { getPinataUrl } from '../utils/pinata';
+import { useRainbowKit } from '../hooks/useRainbowKit';
 
 interface AgentGalleryProps {
   agents: AIAgent[];
@@ -16,6 +17,7 @@ export default function AgentGallery({ agents: propAgents, setActiveSection }: A
   const [agents, setAgents] = useState<AIAgent[]>(propAgents);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mappings, setMappings] = useState<Array<{ wallet_address: string, nft_id: string }>>([]);
 
   const categories = ['All', 'Assistant', 'Creative', 'Analytical', 'Gaming', 'Trading', 'Social'];
 
@@ -30,6 +32,7 @@ export default function AgentGallery({ agents: propAgents, setActiveSection }: A
         };
         
         if (result && result.mappings && Array.isArray(result.mappings)) {
+          setMappings(result.mappings);
           const nftIds = result.mappings.map(mapping => mapping.nft_id);
           
           // Fetch agent data from Pinata for each NFT ID
@@ -212,7 +215,7 @@ export default function AgentGallery({ agents: propAgents, setActiveSection }: A
           !isLoading && !error && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredAgents.map((agent) => (
-                <AgentCard key={agent.id} agent={agent} />
+                <AgentCard key={agent.id} agent={agent} mappings={mappings} />
               ))}
             </div>
           )
@@ -222,7 +225,32 @@ export default function AgentGallery({ agents: propAgents, setActiveSection }: A
   );
 }
 
-function AgentCard({ agent }: { agent: AIAgent }) {
+function AgentCard({ agent, mappings }: { agent: AIAgent, mappings: Array<{ wallet_address: string, nft_id: string }> }) {
+  const { address, isConnected, openConnectModal } = useRainbowKit();
+  
+  // Find if the current agent has a mapping
+  const agentMapping = mappings.find(mapping => mapping.nft_id === agent.id);
+  // Check if the current user is the owner
+  const isOwner = isConnected && address && agentMapping?.wallet_address.toLowerCase() === address.toLowerCase();
+  
+  // Handle buy/sell action
+  const handleTransactionClick = () => {
+    if (!isConnected && openConnectModal) {
+      openConnectModal();
+      return;
+    }
+    
+    if (isOwner) {
+      // Implement sell logic here
+      console.log("Selling agent:", agent.id);
+      alert("Sell functionality will be implemented soon!");
+    } else {
+      // Implement buy logic here
+      console.log("Buying agent:", agent.id);
+      alert("Buy functionality will be implemented soon!");
+    }
+  };
+
   return (
     <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-all duration-300 transform hover:scale-105">
       <div className="relative">
@@ -292,6 +320,28 @@ function AgentCard({ agent }: { agent: AIAgent }) {
             )}
           </div>
         )}
+
+        {/* Buy/Sell Button */}
+        <button
+          onClick={handleTransactionClick}
+          className={`w-full py-2 rounded-lg font-semibold text-white transition-all duration-300 mb-4 flex items-center justify-center ${
+            isOwner 
+              ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400" 
+              : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400"
+          }`}
+        >
+          {isOwner ? (
+            <>
+              <Tag className="h-4 w-4 mr-2" />
+              Sell Agent
+            </>
+          ) : (
+            <>
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              Buy Agent
+            </>
+          )}
+        </button>
 
         {/* Blockchain Info */}
         <div className="border-t border-white/10 pt-4">
