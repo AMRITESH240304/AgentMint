@@ -23,6 +23,7 @@ export interface AIAgent {
     contractAddress: string;
     transactionHash: string;
     mintedAt: string;
+    ownerAddress?: string;
   };
   isForSale: boolean;
   createdAt: string;
