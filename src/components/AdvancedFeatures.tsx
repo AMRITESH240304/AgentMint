@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Vote, Users, TrendingUp } from 'lucide-react';
 import AgentRoyaltyStreams from './AgentRoyaltyStreams';
 import RentAgentCard from './RentAgentCard';
+import LeaderboardsModal from './LeaderboardsModal';
 
 interface FeatureCardProps {
   title: string;
@@ -30,6 +31,8 @@ function FeatureCard({ title, description, icon, onClick }: FeatureCardProps) {
 }
 
 export default function AdvancedFeatures() {
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  
   const showFeatureAlert = (feature: string) => {
     // Create a custom alert overlay instead of using the browser alert
     const overlay = document.createElement('div');
@@ -91,7 +94,7 @@ export default function AdvancedFeatures() {
             title="Leaderboards"
             description="Discover top bidders, most used agents, and other community highlights."
             icon={<TrendingUp className="h-8 w-8 text-white" />}
-            onClick={() => showFeatureAlert('Leaderboards')}
+            onClick={() => setIsLeaderboardOpen(true)}
           />
           
           {/* Custom detailed component for Rent this Agent */}
@@ -108,6 +111,11 @@ export default function AdvancedFeatures() {
           </button>
         </div>
       </div>
+      
+      <LeaderboardsModal 
+        isOpen={isLeaderboardOpen} 
+        onClose={() => setIsLeaderboardOpen(false)} 
+      />
     </section>
   );
 }
