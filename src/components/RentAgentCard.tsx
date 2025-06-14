@@ -1,6 +1,16 @@
-import React, { useState } from 'react';
-import { CreditCard, Calendar, Clock, Clock3, Cpu, Shield, Users, Info, X, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CreditCard, Calendar, Clock3, Info, X, CheckCircle } from 'lucide-react';
 import type { AIAgent } from '../types/agent';
+import { useAccount } from 'wagmi';
+
+// Define interface for rental data
+interface RentalData {
+  nft_id: string;
+  owner_wallet: string;
+  renter_wallet: string;
+  rental_start: string;
+  rental_end: string;
+}
 
 // Sample agent for demo purposes
 const sampleAgent: AIAgent = {
@@ -24,7 +34,8 @@ const sampleAgent: AIAgent = {
     tokenId: '1004',
     contractAddress: '0xabcd1234...',
     transactionHash: '0xefgh5678...',
-    mintedAt: new Date().toISOString()
+    mintedAt: new Date().toISOString(),
+    ownerAddress: '0x3a84fbD5f512ef389c541C5f6D1a0c8c6DCCe9C4' // Added owner address
   },
   createdAt: new Date().toISOString()
 };
@@ -44,6 +55,35 @@ export default function RentAgentCard() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isRenting, setIsRenting] = useState(false);
   const [rentalSuccess, setRentalSuccess] = useState(false);
+  const [activeRentals, setActiveRentals] = useState<RentalData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Get the user's wallet address
+  const { address } = useAccount();
+  
+  // Fetch active rentals when component mounts
+  useEffect(() => {
+    fetchActiveRentals();
+  }, []);
+  
+  // Function to fetch active rentals
+  const fetchActiveRentals = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("https://agent-mint-back.onrender.com/active-rentals");
+      if (!response.ok) {
+        throw new Error("Failed to fetch active rentals");
+      }
+      const data = await response.json();
+      setActiveRentals(data.active_rentals);
+    } catch (err) {
+      console.error("Error fetching active rentals:", err);
+      setError("Failed to load active rentals");
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Rental plans
   const rentalPlans: RentalPlan[] = [
@@ -88,6 +128,7 @@ export default function RentAgentCard() {
   const openModal = () => {
     setIsModalOpen(true);
     setRentalSuccess(false);
+    setError(null); // Clear any previous errors
   };
 
   const closeModal = () => {
@@ -99,15 +140,56 @@ export default function RentAgentCard() {
   };
 
   const handleRentNow = async () => {
-    if (!selectedPlan) return;
+    if (!selectedPlan || !address) return;
+    
+    // Get selected plan details
+    const plan = rentalPlans.find(p => p.id === selectedPlan);
+    if (!plan) return;
     
     setIsRenting(true);
     
-    // Simulate API call for renting
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsRenting(false);
-    setRentalSuccess(true);
+    try {
+      // Calculate rental period based on the selected plan
+      const now = new Date();
+      const endDate = new Date(now.getTime() + plan.durationHours * 60 * 60 * 1000);
+      
+      // Check if user is trying to rent their own NFT
+      if (address.toLowerCase() === sampleAgent.blockchain.ownerAddress?.toLowerCase()) {
+        setError("You cannot rent your own NFT");
+        setIsRenting(false);
+        return;
+      }
+      
+      // Call the rent API
+      const response = await fetch("https://agent-mint-back.onrender.com/rent", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nftId: sampleAgent.blockchain.tokenId,
+          ownerWallet: sampleAgent.blockchain.ownerAddress,
+          renterWallet: address,
+          rentalStart: now.toISOString(),
+          rentalEnd: endDate.toISOString()
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to rent agent");
+      }
+      
+      // Refresh active rentals after successful rental
+      await fetchActiveRentals();
+      
+      setRentalSuccess(true);
+    } catch (err) {
+      console.error("Error renting agent:", err);
+      setError("Failed to rent the agent. Please try again.");
+    } finally {
+      setIsRenting(false);
+    }
   };
 
   // Calculate time remaining for active rentals
@@ -122,21 +204,6 @@ export default function RentAgentCard() {
     
     return { hours, minutes };
   };
-
-  // Mock active rentals
-  const activeRentals = [
-    {
-      agent: {
-        id: '5',
-        name: 'Data Analyzer Pro',
-        avatar: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZWR3eGlzcGVoMnFxYXExMXJ1Ym5rOTlhZmM0OXR1ejdhM2g2NjM1dCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPEqDGUULpEU0aQ/giphy.gif'
-      },
-      plan: 'Daily Pass',
-      startTime: new Date(new Date().getTime() - 8 * 60 * 60 * 1000), // 8 hours ago
-      endTime: new Date(new Date().getTime() + 16 * 60 * 60 * 1000), // 16 hours from now
-      usage: 37 // percentage
-    }
-  ];
 
   return (
     <div className="bg-gray-800/80 backdrop-blur-sm border border-purple-500/30 rounded-2xl overflow-hidden relative h-full flex flex-col">
@@ -208,24 +275,37 @@ export default function RentAgentCard() {
             <span className="text-xs text-gray-400">{activeRentals.length} active</span>
           </div>
           
-          {activeRentals.length > 0 ? (
+          {isLoading ? (
+            <div className="bg-white/5 rounded-lg p-4 text-center">
+              <p className="text-gray-400 text-sm">Loading active rentals...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-white/5 rounded-lg p-4 text-center">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          ) : activeRentals.length > 0 ? (
             <div className="space-y-3">
               {activeRentals.map((rental, index) => {
-                const { hours, minutes } = calculateTimeRemaining(rental.endTime);
+                // Calculate time remaining
+                const endTime = new Date(rental.rental_end);
+                const { hours, minutes } = calculateTimeRemaining(endTime);
+                
+                // Calculate usage percentage (time elapsed / total rental duration)
+                const startTime = new Date(rental.rental_start);
+                const totalDuration = endTime.getTime() - startTime.getTime();
+                const elapsed = new Date().getTime() - startTime.getTime();
+                const usagePercentage = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+                
                 return (
                   <div key={index} className="bg-white/5 rounded-lg p-3 border border-white/10">
                     <div className="flex items-center space-x-3">
-                      <div className="h-10 w-10 rounded overflow-hidden">
-                        <img 
-                          src={rental.agent.avatar} 
-                          alt={rental.agent.name}
-                          className="h-full w-full object-cover"
-                        />
+                      <div className="h-10 w-10 rounded overflow-hidden bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                        {rental.nft_id.substring(0, 2)}
                       </div>
                       <div className="flex-1">
-                        <h5 className="font-medium text-white text-sm">{rental.agent.name}</h5>
+                        <h5 className="font-medium text-white text-sm">Agent #{rental.nft_id}</h5>
                         <div className="flex items-center text-xs text-gray-400">
-                          <span>{rental.plan}</span>
+                          <span>Active Rental</span>
                           <span className="mx-1">•</span>
                           <span className="text-cyan-400">{hours}h {minutes}m remaining</span>
                         </div>
@@ -233,7 +313,7 @@ export default function RentAgentCard() {
                       <div className="h-2 w-16 bg-gray-700 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-gradient-to-r from-cyan-500 to-blue-500" 
-                          style={{ width: `${rental.usage}%` }}
+                          style={{ width: `${usagePercentage}%` }}
                         ></div>
                       </div>
                     </div>
@@ -301,21 +381,24 @@ export default function RentAgentCard() {
                 <h3 className="text-xl font-bold text-white mb-2">Rental Successful!</h3>
                 <p className="text-gray-300 mb-4 text-sm">
                   You now have access to {sampleAgent.name} for the selected duration.
-                  Access details have been sent to your connected wallet.
+                  Your rental has been recorded on the blockchain.
                 </p>
                 <div className="bg-white/5 rounded-lg p-3 mb-4 text-left">
-                  <h4 className="font-medium text-white text-sm mb-2">Access Information</h4>
+                  <h4 className="font-medium text-white text-sm mb-2">Rental Information</h4>
                   <div className="grid grid-cols-2 gap-y-2 text-xs">
-                    <span className="text-gray-400">API Endpoint:</span>
-                    <span className="text-cyan-400 font-mono text-xs break-all">api.agentmint.io/access/a7f93d</span>
-                    <span className="text-gray-400">Access Token:</span>
-                    <span className="text-cyan-400 font-mono">••••••••••••••••</span>
-                    <span className="text-gray-400">Expires:</span>
-                    <span className="text-white">June 15, 2025 (24 hours)</span>
+                    <span className="text-gray-400">Agent ID:</span>
+                    <span className="text-cyan-400 font-mono text-xs break-all">{sampleAgent.blockchain.tokenId}</span>
+                    <span className="text-gray-400">Rented From:</span>
+                    <span className="text-cyan-400 font-mono">{sampleAgent.blockchain.ownerAddress?.substring(0, 6)}...{sampleAgent.blockchain.ownerAddress?.substring(sampleAgent.blockchain.ownerAddress.length - 4)}</span>
+                    <span className="text-gray-400">Status:</span>
+                    <span className="text-green-400">Active</span>
                   </div>
                 </div>
                 <button
-                  onClick={closeModal}
+                  onClick={() => {
+                    closeModal();
+                    fetchActiveRentals(); // Refresh the active rentals list
+                  }}
                   className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg font-medium text-white hover:from-blue-400 hover:to-cyan-400 transition-colors text-sm"
                 >
                   View My Rentals
@@ -390,6 +473,15 @@ export default function RentAgentCard() {
                     Renting gives you temporary access to this agent's capabilities through our API. You'll receive access credentials after payment.
                   </p>
                 </div>
+                
+                {error && (
+                  <div className="bg-red-900/20 border border-red-900/50 rounded-lg p-2 mb-4 flex items-start space-x-2">
+                    <Info className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-300">
+                      {error}
+                    </p>
+                  </div>
+                )}
                 
                 <button
                   onClick={handleRentNow}
