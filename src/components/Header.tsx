@@ -15,6 +15,7 @@ export default function Header({ activeSection, setActiveSection }: HeaderProps)
     { name: 'Register', id: 'register' },
     { name: 'Gallery', id: 'gallery' },
     { name: 'Marketplace', id: 'marketplace' },
+    { name: 'Advanced', id: 'advanced' },
   ];
 
   return (
@@ -42,9 +43,16 @@ export default function Header({ activeSection, setActiveSection }: HeaderProps)
                     activeSection === item.id
                       ? 'text-cyan-400 bg-cyan-400/10'
                       : 'text-gray-300 hover:text-cyan-400 hover:bg-white/5'
+                  } ${
+                    item.id === 'advanced' ? 'relative' : ''
                   }`}
                 >
                   {item.name}
+                  {item.id === 'advanced' && (
+                    <span className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full text-[10px] font-bold text-white">
+                      NEW
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>
@@ -79,9 +87,16 @@ export default function Header({ activeSection, setActiveSection }: HeaderProps)
                     activeSection === item.id
                       ? 'text-cyan-400 bg-cyan-400/10'
                       : 'text-gray-300 hover:text-cyan-400 hover:bg-white/5'
+                  } ${
+                    item.id === 'advanced' ? 'relative' : ''
                   }`}
                 >
                   {item.name}
+                  {item.id === 'advanced' && (
+                    <span className="absolute top-1.5 ml-2 px-1.5 py-0.5 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full text-[10px] font-bold text-white">
+                      NEW
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>

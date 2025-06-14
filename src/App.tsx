@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import AgentRegistration from './components/AgentRegistration';
 import AgentGallery from './components/AgentGallery';
 import Marketplace from './components/Marketplace';
 import AuctionListings from './components/AuctionListings';
+import AdvancedFeatures from './components/AdvancedFeatures';
 import type { AIAgent } from './types/agent';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 
@@ -27,6 +28,8 @@ function App() {
         return <Marketplace agents={agents} />;
       case 'auctions':
         return <AuctionListings agents={agents} />;
+      case 'advanced':
+        return <AdvancedFeatures />;
       default:
         return <Hero setActiveSection={setActiveSection} />;
     }
