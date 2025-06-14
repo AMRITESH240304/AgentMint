@@ -28,7 +28,7 @@ export function useAuctionHttp(nftId: string, userWalletAddress: string | undefi
     setIsLoading(true);
     try {
       console.log(`Fetching auction data for NFT ${nftId} via HTTP`);
-      const response = await fetch(`http://localhost:8000/auction/${nftId}`);
+      const response = await fetch(`https://agent-mint-back.onrender.com/auction/${nftId}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch auction data');
@@ -132,7 +132,7 @@ export function useAuctionHttp(nftId: string, userWalletAddress: string | undefi
         timestamp: new Date().toISOString()
       };
       
-      const response = await fetch('http://localhost:8000/place-bid', {
+      const response = await fetch('https://agent-mint-back.onrender.com/place-bid', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
