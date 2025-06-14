@@ -15,6 +15,7 @@
     "@supabase/supabase-js": "^2.50.0",
     "@tanstack/react-query": "^5.80.6",
     "ethers": "^6.14.3",
+    "framer-motion": "^12.18.1",
     "lucide-react": "^0.344.0",
     "mongoose": "^8.15.1",
     "pinata-web3": "^0.5.4",
