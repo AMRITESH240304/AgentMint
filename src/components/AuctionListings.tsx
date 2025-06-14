@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, Clock, Coins, Circle, XCircle } from 'lucide-react';
 import type { AIAgent } from '../types/agent';
 import BidScreen from './BidScreen'; // Import the new BidScreen component
-import { fetchMappings } from '../utils/mongodb';
+import { fetchMappings, getAuctionDetails } from '../utils/mongodb';
 import { getPinataUrl } from '../utils/pinata';
+import { useRainbowKit } from '../hooks/useRainbowKit';
 
 interface AuctionListingsProps {
   agents: AIAgent[];
@@ -16,6 +17,8 @@ export default function AuctionListings({ agents: propAgents }: AuctionListingsP
   const [agents, setAgents] = useState<AIAgent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeAuctions, setActiveAuctions] = useState<Record<string, boolean>>({});
+  const { address } = useRainbowKit();
 
   const categories = ['All', 'Assistant', 'Creative', 'Analytical', 'Gaming', 'Trading', 'Social'];
 
@@ -23,12 +26,27 @@ export default function AuctionListings({ agents: propAgents }: AuctionListingsP
     async function loadAgentsFromMappings() {
       try {
         setIsLoading(true);
-        const response = await fetchMappings();          // Explicitly type the response to match expected structure
+        const response = await fetchMappings();          
+        // Explicitly type the response to match expected structure
         const result = response as unknown as { 
-          mappings: Array<{ wallet_address: string, nft_id: string }> 
+          mappings: Array<{ 
+            wallet_address: string, 
+            nft_id: string, 
+            auction_started?: boolean,
+            auction_start_time?: string
+          }> 
         };
         
         if (result && result.mappings && Array.isArray(result.mappings)) {
+          // Track which NFTs have active auctions
+          const auctionsMap: Record<string, boolean> = {};
+          result.mappings.forEach(mapping => {
+            if (mapping.auction_started) {
+              auctionsMap[mapping.nft_id] = true;
+            }
+          });
+          setActiveAuctions(auctionsMap);
+          
           const nftIds = result.mappings.map(mapping => mapping.nft_id);
           
           // Fetch agent data from Pinata for each NFT ID
@@ -43,20 +61,36 @@ export default function AuctionListings({ agents: propAgents }: AuctionListingsP
               
               const agentData = await response.json();
               
+              // Check if this agent has an active auction
+              const hasActiveAuction = result.mappings.find(m => 
+                m.nft_id === nftId && m.auction_started
+              );
+              
+              // Get auction details if available
+              let auctionDetails = null;
+              if (hasActiveAuction) {
+                try {
+                  auctionDetails = await getAuctionDetails(nftId);
+                } catch (err) {
+                  console.error(`Error fetching auction details for NFT ID: ${nftId}`, err);
+                }
+              }
+              
               // Convert the Pinata data format to our AIAgent format
-              const agent = {
+              const agent: AIAgent = {
                 id: nftId,
                 name: agentData.title || 'Unnamed Agent',
                 description: agentData.description || 'No description available',
                 avatar: "https://gateway.pinata.cloud/ipfs/QmSamy4zqP91X42k6wS7kLJQVzuYJuW2EN94couPaq82A8",
-                category: agentData.category || 'Uncategorized',
+                category: (agentData.category || 'Uncategorized') as AIAgent['category'],
                 capabilities: agentData.capabilities || [],
                 creator: agentData.creators?.[0]?.name || 'Unknown',
                 blockchain: {
                   tokenId: nftId,
                   contractAddress: "0x1234...",
                   transactionHash: "0x5678...",
-                  mintedAt: new Date().toISOString()
+                  mintedAt: new Date().toISOString(),
+                  ownerAddress: result.mappings.find(m => m.nft_id === nftId)?.wallet_address
                 },
                 metadata: {
                   model: agentData.metadata?.model || "unknown",
@@ -70,8 +104,9 @@ export default function AuctionListings({ agents: propAgents }: AuctionListingsP
                   tasks: 120,
                   uptime: 99
                 },
-                price: 0.1,
-                isForSale: true
+                // Use highest bid from auction if available
+                price: auctionDetails?.highest_bid || 0.1,
+                isForSale: !!hasActiveAuction // Only agents with active auctions are for sale
               };
               return agent;
             } catch (err) {
@@ -83,8 +118,13 @@ export default function AuctionListings({ agents: propAgents }: AuctionListingsP
           const fetchedAgents = (await Promise.all(agentPromises))
             .filter((agent): agent is AIAgent => agent !== null) as AIAgent[];
           
+          // Only display agents with active auctions
+          const auctionAgents = fetchedAgents.filter(agent => 
+            result.mappings.find(m => m.nft_id === agent.id && m.auction_started)
+          );
+          
           // Combine fetched agents with sample agents for demonstration
-          setAgents([...propAgents, ...fetchedAgents, ...sampleAgents]);
+          setAgents([...auctionAgents, ...sampleAgents]);
         }
       } catch (err) {
         console.error("Error loading agent mappings:", err);
@@ -177,26 +217,8 @@ export default function AuctionListings({ agents: propAgents }: AuctionListingsP
     setSelectedAgentForBid(null);
   };
 
-  const handlePlaceBid = async (agentId: string, bidAmount: number) => {
-    // This is a placeholder for your actual bid placement logic
-    // In a real app, you would interact with a smart contract here
-    console.log(`Attempting to place bid for agent ${agentId} with amount ${bidAmount} ETH`);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500)); 
-    // Simulate success/failure (e.g., 80% success rate)
-    if (Math.random() < 0.8) {
-      console.log("Bid successful!");
-      // You might want to update the agent's price or auction status here
-      // For now, just returning true
-      return true;
-    } else {
-      console.log("Bid failed!");
-      return false;
-    }
-  };
-
   if (selectedAgentForBid) {
-    return <BidScreen agent={selectedAgentForBid} onBack={handleCloseBidScreen} onPlaceBid={handlePlaceBid} />;
+    return <BidScreen agent={selectedAgentForBid} onBack={handleCloseBidScreen} />;
   }
 
   return (
@@ -278,6 +300,73 @@ export default function AuctionListings({ agents: propAgents }: AuctionListingsP
 }
 
 function AuctionCard({ agent, onPlaceBidClick }: { agent: AIAgent; onPlaceBidClick: () => void }) {
+  const [timeRemaining, setTimeRemaining] = useState<string>("Loading...");
+  const [auctionData, setAuctionData] = useState<any>(null);
+
+  // Fetch auction details and set up timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    const fetchAuctionInfo = async () => {
+      try {
+        const data = await getAuctionDetails(agent.id);
+        setAuctionData(data);
+        
+        // Update time remaining
+        if (data && data.time_left_seconds) {
+          // Initial update
+          updateTimeRemaining(data.time_left_seconds);
+          
+          // Set interval to update time every second
+          interval = setInterval(() => {
+            const newSecondsLeft = Math.max(0, data.time_left_seconds - 1);
+            data.time_left_seconds = newSecondsLeft;
+            updateTimeRemaining(newSecondsLeft);
+            
+            // Clear interval if auction ended
+            if (newSecondsLeft <= 0) {
+              clearInterval(interval);
+            }
+          }, 1000);
+        } else {
+          setTimeRemaining("Auction ended");
+        }
+      } catch (err) {
+        console.error("Error fetching auction details:", err);
+        setTimeRemaining("Error loading time");
+      }
+    };
+    
+    fetchAuctionInfo();
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [agent.id]);
+  
+  // Format time remaining
+  const updateTimeRemaining = (seconds: number) => {
+    if (seconds <= 0) {
+      setTimeRemaining("Auction ended");
+      return;
+    }
+    
+    const days = Math.floor(seconds / (24 * 60 * 60));
+    const hours = Math.floor((seconds % (24 * 60 * 60)) / (60 * 60));
+    const minutes = Math.floor((seconds % (60 * 60)) / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    
+    if (days > 0) {
+      setTimeRemaining(`${days}d ${hours}h remaining`);
+    } else if (hours > 0) {
+      setTimeRemaining(`${hours}h ${minutes}m remaining`);
+    } else if (minutes > 0) {
+      setTimeRemaining(`${minutes}m ${remainingSeconds}s remaining`);
+    } else {
+      setTimeRemaining(`${remainingSeconds}s remaining`);
+    }
+  };
+
   return (
     <div className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-all duration-300 transform hover:scale-105">
       <div className="relative">
@@ -301,10 +390,10 @@ function AuctionCard({ agent, onPlaceBidClick }: { agent: AIAgent; onPlaceBidCli
         <div className="flex items-center justify-between mb-4 text-sm">
           <div className="flex items-center space-x-1 text-cyan-400">
             <Clock className="h-4 w-4" />
-            <span>24h remaining</span>
+            <span>{timeRemaining}</span>
           </div>
           <div className="text-gray-300">
-            <span>Current Bid: {agent.price.toFixed(2)} ETH</span>
+            <span>Current Bid: {agent.price.toFixed(4)} ETH</span>
           </div>
         </div>
 

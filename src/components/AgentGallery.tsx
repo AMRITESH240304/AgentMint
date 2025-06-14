@@ -224,7 +224,12 @@ export default function AgentGallery({ agents: propAgents, setActiveSection }: A
           !isLoading && !error && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredAgents.map((agent) => (
-                <AgentCard key={agent.id} agent={agent} mappings={mappings} />
+                <AgentCard 
+                  key={agent.id} 
+                  agent={agent} 
+                  mappings={mappings} 
+                  setActiveSection={setActiveSection}
+                />
               ))}
             </div>
           )
@@ -234,7 +239,11 @@ export default function AgentGallery({ agents: propAgents, setActiveSection }: A
   );
 }
 
-function AgentCard({ agent, mappings }: { agent: AIAgent, mappings: AgentMapping[] }) {
+function AgentCard({ agent, mappings, setActiveSection }: { 
+  agent: AIAgent, 
+  mappings: AgentMapping[],
+  setActiveSection: (section: string) => void
+}) {
   const { address, isConnected, openConnectModal } = useRainbowKit();
   const [showDetails, setShowDetails] = useState(false);
   const [isStartingAuction, setIsStartingAuction] = useState(false);
@@ -272,9 +281,14 @@ function AgentCard({ agent, mappings }: { agent: AIAgent, mappings: AgentMapping
         }
       }
     } else {
-      // Implement buy logic here
-      console.log("Buying agent:", agent.id);
-      alert("Buy functionality will be implemented soon!");
+      if (isInAuction) {
+        // Navigate to auctions section to place a bid
+        setActiveSection('auctions');
+      } else {
+        // Implement buy logic here
+        console.log("Buying agent:", agent.id);
+        alert("Buy functionality will be implemented soon!");
+      }
     }
   };
   
@@ -399,6 +413,7 @@ function AgentCard({ agent, mappings }: { agent: AIAgent, mappings: AgentMapping
           isInAuction={isInAuction}
           onClose={() => setShowDetails(false)} 
           onBuySell={handleTransactionClick}
+          setActiveSection={setActiveSection}
         />
       )}
     </>
@@ -411,9 +426,10 @@ interface AgentDetailsModalProps {
   isInAuction: boolean;
   onClose: () => void;
   onBuySell: (e: React.MouseEvent) => void;
+  setActiveSection: (section: string) => void;
 }
 
-function AgentDetailsModal({ agent, isOwner, isInAuction, onClose, onBuySell }: AgentDetailsModalProps) {
+function AgentDetailsModal({ agent, isOwner, isInAuction, onClose, onBuySell, setActiveSection }: AgentDetailsModalProps) {
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState<Array<{role: 'user' | 'agent', content: string}>>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -464,6 +480,19 @@ function AgentDetailsModal({ agent, isOwner, isInAuction, onClose, onBuySell }: 
       return isOwner 
         ? "bg-green-600 hover:bg-green-700 text-white" 
         : "bg-blue-600 hover:bg-blue-700 text-white";
+    }
+  };
+  
+  // Handle action button click
+  const handleActionButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (isInAuction && !isOwner) {
+      // Navigate to auctions page to place a bid
+      onClose();
+      setActiveSection('auctions');
+    } else {
+      onBuySell(e);
     }
   };
 
@@ -652,7 +681,7 @@ function AgentDetailsModal({ agent, isOwner, isInAuction, onClose, onBuySell }: 
               
               <div className="mt-4 flex justify-center">
                 <button 
-                  onClick={onBuySell}
+                  onClick={handleActionButtonClick}
                   disabled={isOwner && isInAuction}
                   className={`px-6 py-2 rounded-lg text-sm font-medium ${getActionButtonStyle()}`}
                 >
@@ -687,7 +716,7 @@ function AgentDetailsModal({ agent, isOwner, isInAuction, onClose, onBuySell }: 
               
               <div className="flex justify-center">
                 <button 
-                  onClick={onBuySell}
+                  onClick={handleActionButtonClick}
                   disabled={isOwner && isInAuction}
                   className={`px-6 py-3 rounded-lg font-bold ${getActionButtonStyle()}`}
                 >

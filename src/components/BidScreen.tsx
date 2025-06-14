@@ -1,56 +1,122 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { AIAgent } from '../types/agent';
-import { ArrowLeft, Info, CheckCircle, XCircle, Hammer } from 'lucide-react';
+import { ArrowLeft, Info, CheckCircle, XCircle, Hammer, Clock, RefreshCw, Trophy, RotateCcw } from 'lucide-react';
+import { useAuctionHttp, formatTimeLeft } from '../utils/auctionSocket';
+import { useRainbowKit } from '../hooks/useRainbowKit';
 
 interface BidScreenProps {
   agent: AIAgent;
   onBack: () => void;
-  onPlaceBid: (agentId: string, bidAmount: number) => Promise<boolean>; // Returns true if bid is successful
 }
 
-export default function BidScreen({ agent, onBack, onPlaceBid }: BidScreenProps) {
+export default function BidScreen({ agent, onBack }: BidScreenProps) {
   const [bidAmount, setBidAmount] = useState<string>('');
   const [isBidding, setIsBidding] = useState(false);
   const [bidStatus, setBidStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showHammerAnimation, setShowHammerAnimation] = useState(false);
+  const [showWinnerAnimation, setShowWinnerAnimation] = useState(false);
+  const { address } = useRainbowKit();
   
-  const currentHighestBid = agent.price; // Assuming agent.price is the current highest bid
+  // Use the simplified HTTP-only auction hook
+  const { 
+    auctionData, 
+    error, 
+    isLoading,
+    bidSuccessful,
+    isWinner,
+    timeLeft,
+    auctionEnded,
+    placeBid,
+    refreshAuction,
+    restartAuction
+  } = useAuctionHttp(agent.id, address);
+  
+  // Get current highest bid from either auction data or agent price
+  const currentHighestBid = auctionData?.highest_bid ?? agent.price;
+  
+  // Update UI based on auction data and errors
+  useEffect(() => {
+    if (error) {
+      setErrorMessage(error);
+      setBidStatus('error');
+    }
+    
+    if (bidSuccessful) {
+      setBidStatus('success');
+    }
+  }, [error, bidSuccessful]);
+  
+  
+  // Set up a simple countdown timer
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
+  
+  useEffect(() => {
+    if (!auctionData) {
+      setTimeRemaining('Loading auction data...');
+      return;
+    }
+    
+    // Update time remaining
+    if (timeLeft > 0) {
+      setTimeRemaining(`${timeLeft}s remaining`);
+    } else {
+      setTimeRemaining('Auction ended');
+      
+      // If user is the winner, show the animation
+      if (isWinner && !showWinnerAnimation) {
+        setShowWinnerAnimation(true);
+        setTimeout(() => setShowWinnerAnimation(false), 5000); // Hide after 5 seconds
+      }
+    }
+    
+  }, [auctionData, timeLeft, isWinner]);
 
   const handlePlaceBid = async () => {
-    if (!bidAmount || parseFloat(bidAmount) <= currentHighestBid) {
-      setErrorMessage(`Your bid must be higher than the current highest bid of ${currentHighestBid} ETH.`);
+    if (!address) {
+      setErrorMessage("Please connect your wallet first");
       setBidStatus('error');
       return;
     }
     
-    // Start the hammer animation
+    if (!bidAmount || parseFloat(bidAmount) <= currentHighestBid) {
+      setErrorMessage(`Your bid must be higher than the current highest bid of ${currentHighestBid.toFixed(4)} ETH.`);
+      setBidStatus('error');
+      return;
+    }
+    
+    // Show hammer animation
     setShowHammerAnimation(true);
     
-    // Delay the actual bid processing to let the animation play
+    // Process bid after a short delay for animation
     setTimeout(async () => {
       setIsBidding(true);
       setErrorMessage(null);
+      
       try {
-        const success = await onPlaceBid(agent.id, parseFloat(bidAmount));
+        // Use our simplified bid function
+        const success = await placeBid(parseFloat(bidAmount));
+        
         if (success) {
           setBidStatus('success');
         } else {
           setBidStatus('error');
-          setErrorMessage('Bid placement failed. Please try again.');
+          if (!errorMessage) {
+            setErrorMessage('Bid placement failed. Please try again.');
+          }
         }
-      } catch (error) {
+      } catch (error: any) {
         setBidStatus('error');
-        setErrorMessage('An unexpected error occurred. Please try again.');
-        console.error('Bid placement error:', error);
+        setErrorMessage(error.message || 'An unexpected error occurred');
       }
+      
       setIsBidding(false);
       
-      // Hide hammer animation after 1.5 seconds
+      // Hide animation after a delay
       setTimeout(() => {
         setShowHammerAnimation(false);
       }, 1500);
-    }, 1000); // Delay bid processing by 1 second to show animation
+    }, 1000);
   };
 
   return (
@@ -70,6 +136,60 @@ export default function BidScreen({ agent, onBack, onPlaceBid }: BidScreenProps)
               <div className="absolute top-[80%] left-1/2 transform -translate-x-1/2 w-24 h-1 bg-amber-500/50 rounded-full animate-hammer-impact"></div>
               <span className="absolute top-[120%] left-1/2 transform -translate-x-1/2 text-3xl font-bold text-amber-500 animate-bid-text">BID PLACED!</span>
             </div>
+          </div>
+        )}
+        
+        {/* Winner Animation */}
+        {showWinnerAnimation && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/70 backdrop-blur-md">
+            <div className="relative animate-bounce-slow">
+              <Trophy 
+                size={140} 
+                className="text-yellow-500"
+                style={{
+                  filter: "drop-shadow(0 0 30px rgba(234, 179, 8, 0.8))",
+                }}
+              />
+            </div>
+            <h2 className="mt-8 text-4xl font-bold text-yellow-500 animate-winner-text">
+              YOU WON THE AUCTION!
+            </h2>
+            <p className="mt-4 text-xl text-white">
+              Congratulations! This NFT is now yours!
+            </p>
+            <button 
+              onClick={restartAuction} 
+              className="mt-8 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-semibold text-white flex items-center"
+            >
+              <RotateCcw className="mr-2 h-5 w-5" /> Restart Demo Auction
+            </button>
+          </div>
+        )}
+
+        {/* Auction Ended Display */}
+        {auctionEnded && !showWinnerAnimation && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+            <h2 className="text-3xl font-bold text-white mb-4">
+              Auction Has Ended!
+            </h2>
+            {auctionData?.highest_bidder ? (
+              <p className="text-xl text-gray-300 mb-6">
+                Winner: {auctionData.highest_bidder.substring(0, 6)}...{auctionData.highest_bidder.substring(auctionData.highest_bidder.length - 4)}
+              </p>
+            ) : (
+              <p className="text-xl text-gray-300 mb-6">
+                No bids were placed
+              </p>
+            )}
+            <p className="text-2xl font-semibold text-green-500 mb-8">
+              Final Price: {auctionData?.highest_bid.toFixed(4) || '0'} ETH
+            </p>
+            <button 
+              onClick={restartAuction} 
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-semibold text-white flex items-center"
+            >
+              <RotateCcw className="mr-2 h-5 w-5" /> Restart Demo Auction
+            </button>
           </div>
         )}
 
@@ -111,14 +231,62 @@ export default function BidScreen({ agent, onBack, onPlaceBid }: BidScreenProps)
           <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 flex flex-col justify-between">
             <div>
               <div className="mb-4">
-                <p className="text-sm text-gray-400">Estimate $2,000 - $2,200</p>
-                <p className="text-xs text-gray-500">Jun 14, 2025, 7:30 PM GMT+5:30</p>
+                <div className="flex items-center justify-between mb-2 text-sm">
+                  <div className="flex items-center space-x-1 text-cyan-400">
+                    <Clock className="h-4 w-4" />
+                    <span className={timeLeft <= 10 && timeLeft > 0 ? 'animate-pulse font-bold text-red-500' : ''}>
+                      {timeRemaining}
+                    </span>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => refreshAuction()}
+                      className="text-gray-400 hover:text-white"
+                      title="Refresh auction data"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </button>
+                    {auctionEnded && (
+                      <button
+                        onClick={restartAuction}
+                        className="text-blue-400 hover:text-blue-300 flex items-center text-xs"
+                        title="Restart auction"
+                      >
+                        <RotateCcw className="h-3 w-3 mr-1" /> Restart
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-xs text-gray-500">
+                    {auctionEnded ? 'Auction has ended' : 'Auction in progress'}
+                  </p>
+                  <div className="flex items-center text-xs">
+                    <div className={`w-2 h-2 rounded-full mr-1 ${
+                      isLoading ? 'bg-yellow-500' : 
+                      auctionEnded ? 'bg-red-500' : 
+                      'bg-green-500'
+                    }`}></div>
+                    <span className="text-gray-400">
+                      {isLoading ? 'Loading...' : 
+                       auctionEnded ? 'Ended' : 
+                       'Active'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div className="mb-6">
-                <p className="text-sm text-gray-400">Starting Price</p>
-                <p className="text-4xl font-bold text-white">${(currentHighestBid * 100).toFixed(0)}</p> {/* Assuming 1 ETH = $100 for display, adjust as needed */}
-                <p className="text-xs text-gray-400">or 4 payments starting at $25.00 with Zip <Info size={12} className="inline"/></p>
+                <p className="text-sm text-gray-400">Current Highest Bid</p>
+                <p className="text-4xl font-bold text-white">{currentHighestBid.toFixed(4)} ETH</p>
+                {auctionData?.highest_bidder && (
+                  <p className={`text-xs ${isWinner ? 'text-green-400 font-semibold' : 'text-gray-400'}`}>
+                    Current highest bidder: 
+                    {isWinner ? ' You!' : 
+                      ` ${auctionData.highest_bidder.substring(0, 6)}...${auctionData.highest_bidder.substring(auctionData.highest_bidder.length - 4)}`
+                    }
+                  </p>
+                )}
               </div>
 
               <div className="mb-6">
@@ -161,7 +329,7 @@ export default function BidScreen({ agent, onBack, onPlaceBid }: BidScreenProps)
             <div className="mt-auto">
               <button
                 onClick={handlePlaceBid}
-                disabled={isBidding || bidStatus === 'success' || !bidAmount}
+                disabled={isBidding || bidStatus === 'success' || !bidAmount || auctionEnded}
                 className="w-full py-3.5 bg-gradient-to-r from-red-500 to-orange-500 rounded-lg font-semibold text-white hover:from-red-600 hover:to-orange-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-lg"
               >
                 {isBidding ? (
