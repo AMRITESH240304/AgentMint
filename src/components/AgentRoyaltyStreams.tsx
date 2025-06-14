@@ -174,8 +174,8 @@ export default function AgentRoyaltyStreams() {
       
       {/* Modal for setting up royalty */}
       {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/70 backdrop-blur-sm">
-          <div className="bg-gray-800 border border-purple-500 rounded-xl p-6 max-w-md mx-4 animate-scale-in shadow-xl">
+        <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/80 backdrop-blur-sm rounded-2xl">
+          <div className="bg-gray-800 border border-purple-500 rounded-xl p-6 max-w-[90%] mx-auto animate-zoom-in shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-white">Set Up Royalty Stream</h3>
               <button onClick={closeModal} className="text-gray-400 hover:text-white">

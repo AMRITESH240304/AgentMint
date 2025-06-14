@@ -1,6 +1,7 @@
 import React from 'react';
-import { Vote, Users, TrendingUp, CreditCard } from 'lucide-react';
+import { Vote, Users, TrendingUp } from 'lucide-react';
 import AgentRoyaltyStreams from './AgentRoyaltyStreams';
+import RentAgentCard from './RentAgentCard';
 
 interface FeatureCardProps {
   title: string;
@@ -35,7 +36,7 @@ export default function AdvancedFeatures() {
     overlay.className = 'fixed inset-0 flex items-center justify-center z-50 bg-black/70 backdrop-blur-sm';
     
     const alertBox = document.createElement('div');
-    alertBox.className = 'bg-gray-800 border border-purple-500 rounded-xl p-6 max-w-md mx-4 animate-scale-in shadow-xl';
+    alertBox.className = 'bg-gray-800 border border-purple-500 rounded-xl p-6 max-w-md mx-auto animate-zoom-in shadow-xl';
     
     const title = document.createElement('h3');
     title.className = 'text-xl font-bold text-white mb-3';
@@ -93,12 +94,8 @@ export default function AdvancedFeatures() {
             onClick={() => showFeatureAlert('Leaderboards')}
           />
           
-          <FeatureCard 
-            title="Rent this Agent"
-            description="Alternative to auction, for short-term usage of premium AI agents."
-            icon={<CreditCard className="h-8 w-8 text-white" />}
-            onClick={() => showFeatureAlert('Rent this Agent')}
-          />
+          {/* Custom detailed component for Rent this Agent */}
+          <RentAgentCard />
         </div>
         
         <div className="text-center">
