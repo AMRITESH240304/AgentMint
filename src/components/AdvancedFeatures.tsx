@@ -73,7 +73,7 @@ export default function AdvancedFeatures() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* <FeatureCard 
+          <FeatureCard 
             title="DAO Voting on Super Agents"
             description="Let your community vote on rare agent drops and determine the next generation of AI assistants."
             icon={<Vote className="h-8 w-8 text-white" />}
@@ -85,20 +85,30 @@ export default function AdvancedFeatures() {
             description="Let buyers rent out the agent to others after purchase, creating a new revenue stream."
             icon={<Users className="h-8 w-8 text-white" />}
             onClick={() => showFeatureAlert('Agent-as-a-Service')}
-          /> */}
+          />
           
           {/* Custom detailed component for Agent Royalty Streams */}
+          <AgentRoyaltyStreams />
+          
           <FeatureCard 
             title="Leaderboards"
             description="Discover top bidders, most used agents, and other community highlights."
-            icon={<TrendingUp className=" text-white" />}
+            icon={<TrendingUp className="h-8 w-8 text-white" />}
             onClick={() => setIsLeaderboardOpen(true)}
           />
-          <AgentRoyaltyStreams />
-          
           
           {/* Custom detailed component for Rent this Agent */}
           <RentAgentCard />
+        </div>
+        
+        <div className="text-center">
+          <p className="text-gray-400 mb-4">We're constantly working on new features. Have suggestions?</p>
+          <button 
+            onClick={() => showFeatureAlert('Feature Suggestion')}
+            className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-colors"
+          >
+            Submit Feature Request
+          </button>
         </div>
       </div>
       

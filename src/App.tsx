@@ -24,8 +24,8 @@ function App() {
         return <AgentRegistration onRegister={handleRegisterAgent} />;
       case 'gallery':
         return <AgentGallery agents={agents} setActiveSection={setActiveSection} />;
-      // case 'marketplace':
-      //   return <Marketplace agents={agents} />;
+      case 'marketplace':
+        return <Marketplace agents={agents} />;
       case 'auctions':
         return <AuctionListings agents={agents} />;
       case 'advanced':
