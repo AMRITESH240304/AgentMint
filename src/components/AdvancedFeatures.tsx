@@ -73,7 +73,7 @@ export default function AdvancedFeatures() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          <FeatureCard 
+          {/* <FeatureCard 
             title="DAO Voting on Super Agents"
             description="Let your community vote on rare agent drops and determine the next generation of AI assistants."
             icon={<Vote className="h-8 w-8 text-white" />}
@@ -85,7 +85,7 @@ export default function AdvancedFeatures() {
             description="Let buyers rent out the agent to others after purchase, creating a new revenue stream."
             icon={<Users className="h-8 w-8 text-white" />}
             onClick={() => showFeatureAlert('Agent-as-a-Service')}
-          />
+          /> */}
           
           {/* Custom detailed component for Agent Royalty Streams */}
           <AgentRoyaltyStreams />

@@ -14,7 +14,7 @@ export default function Header({ activeSection, setActiveSection }: HeaderProps)
     { name: 'Home', id: 'home' },
     { name: 'Register', id: 'register' },
     { name: 'Gallery', id: 'gallery' },
-    { name: 'Marketplace', id: 'marketplace' },
+    // { name: 'Marketplace', id: 'marketplace' },
     { name: 'Advanced', id: 'advanced' },
   ];
 
